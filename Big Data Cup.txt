@@ -1,29 +1,6 @@
----
-title: "Big Data Cup"
-output:
-  word_document: default
-  html_document: default
----
+Packages
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-# Hockey is widely known as Canada's pastime. Over the years it has morphed into what it is today. From playing without being paid, to playing without goalie masks or helmets to now at the fastest pace ever; hockey is ever evolving. The next wave of change will be from the increasing amount of data being collected within each game. Coming from a baseball background I have seen how much the game has changed on the field due to the analytics within the front offices. Previously, bunting and stealing bases were fairly common, but recently those aspect have been slowly reduced and almost removed from the game of baseball due to their inability to proide run creation. Using the Erie Otters data set provided by Stathletes I set out to determine what event would lead most to scoring goals.
-
-# In baseball in order to win you have to score and prevent runs, hockey is no different with goals. The statistic that is most correlated to run creation is On Base Plus Slugging (OPS.) This metric combines how many times a batter gets on base divded by at bats and his slugging percentage which is determined by (Single + Double *2 + Triple *3 + Homerun *4) / at bats. It essentially shows how well a batter hits for power while drawing walks. This has caused baseball to shift from a contact oriented game to a high walk, high power, high strikeout game. The statistical importance of each at bat in creating runs has become the forefront of every front office's priorities; outs are precious. 
-
-# When I played hockey we were taught to dump the puck in, chase after it, work hard around the end boards to gain possession and coax a shot on goal. This never made sense to me as you would give up possession of the puck to potentially get it back in the end, why not keep possession and enter the offesnvie zone with it? I saw puck possession as a valuable commoditee, much like an at bat in baseball. My hypothesis is to determine whether keeping possession would be more effective in creating goals. 
-
-# The following are the packages I used to complete the project.
-
-```{r}
 require('dplyr')
 require('ggplot2')
 require('randomForest')
@@ -34,33 +11,32 @@ library(ggplot2)
 library(randomForest)
 library(corrplot)
 library(pROC)
-```
 
-# I downloaded the data from the website into the global environment.
 
-```{r}
+Import Data From Website
+
+
 url <- 'https://raw.githubusercontent.com/bigdatacup/Big-Data-Cup-2021/main/hackathon_scouting.csv'
-
 ottersData <- read.csv(url)
-```
 
-# I then checked the structure and summary fot eh data set to get a better understanding of the data. Notice the NA values only exist in two columns within the data set. This makes them easy to remove as later I just removed the two columns of 'X.Coordinate.2' and 'Y.Coordinate.2'.
 
-```{r}
+Structure and Summary
+
+
 str(ottersData)
-```
-
-```{r}
 summary(ottersData)
-```
 
-# The biggest attribute to this project is the Event attribute. It contains the result of each observation that occured within the dataset. In order to understand the attribute better I used the unique funtion to gain a better understanding of what each unique outcome was. I then created a ring chart to display the frequency of each event occuring on a percentage basis compared to the entrie data set. I noticed that the two outcomes that occured the most were 'Play' and 'Puck Recovery'. Notice though that 'Dumped In' and 'Carried In' are very similar in regards to frequency. Checking the frequency of each event also allows me to understand what parameters I should set the aggragate function to when I am completing the assignment. This will be shown later in the project.
 
-```{r}
+Unique Outcomes in Event Column
+
+
 unique(ottersData$Event)
-```
 
-```{r}
+
+
+Creating Ring Chart
+
+
 EventFreq <- as.data.frame(table(ottersData$Event))
 EventFreq <- rename(EventFreq, Event = Var1)
 EventFreq$fraction <- EventFreq$Freq / sum(EventFreq$Freq)
@@ -75,19 +51,23 @@ ggplot(EventFreq, aes(fill = Event, ymax = ymax, ymin = ymin, xmax = 4, xmin = 3
   theme(panel.grid = element_blank()) +
   theme(axis.text = element_blank()) + 
   theme(axis.ticks = element_blank())
-```
-# I then further cleaned the data to remove the columns containing the NA values and created separate columns for each event occuring. I found this prudent because it allowed me to isolate in binary fashion the results of each play separately. This would allow the creation of my random forest model to be a lot easier as I would simply call on each outcome as an attribute separately. 
 
-```{r}
+
+
+Cleaning The Data
+
+
 ottersData <- select(ottersData, -c(X.Coordinate.2, Y.Coordinate.2))
 ottersData <- mutate(ottersData, "Goal" = case_when(Event == "Goal" ~ 1, Event != "Goal" ~ 0), Shot = case_when(Event == "Shot" ~ 1, Event != "Shot" ~ 0), Carried.In = case_when(Detail.1 == "Carried" | Detail.1 == "Played" ~ 1, Detail.1 != "Carried" & Detail.1 != "Played" ~ 0), Dumped.In =   case_when(Detail.1 == "Dumped" ~ 1, Detail.1 != "Dumped" ~ 0), Faceoff_Win = case_when(Event == "Faceoff Win" ~ 1, Event != "Faceoff Win" ~ 0), Puck_Recover = case_when(Event == "Puck Recovery" ~ 1, Event != "Puck Recovery" ~ 0), Pass_Inc = case_when(Event == "Incomplete Play" ~ 1, Event != "Incomplete Play" ~ 0), Pass_Comp = case_when(Event == "Play" ~1, Event != "Play" ~0), Takeaway = case_when(Event == "Takeaway" ~1, Event != "Takeaway" ~0), Penalty = case_when(Event == "Penalty Taken" ~1, Event != "Penalty Taken" ~0))
 ottersData <- within(ottersData, Event[Event == "Zone Entry" & Detail.1 == "Dumped"] <- "Dumped In")
 ottersData <- within(ottersData, Event[Event == "Zone Entry" & Detail.1 == "Carried" | Detail.1 == "Played"] <- "Carried In")
-```
 
-# Using the code found on 'https://github.com/mtthwastn/statswithmatt/tree/master/hockey-with-r' the below piece of code creates a hockey rink for my goal plot.
 
-```{r}
+
+Rink Function Creation
+
+
+
 gg_rink <- function(side = "right", specs = "nhl"){
   
   side <- tolower(side)
@@ -407,11 +387,13 @@ gg_rink <- function(side = "right", specs = "nhl"){
     )
   )
 }
-```
 
-# I then created a separate data set to show only the goals within ottersData to create the shot plot below. Notice the majority of the goals come from within six feet from in front of the net. This would make sense as it would give the goalie less time to react and basically just hope that he is in good position to just let the puck hit him.
 
-```{r}
+
+Inputting the data into Rink Function
+
+
+
 ottersGoals <- filter(ottersData, Event == "Goal" & X.Coordinate > 0)
 
 ottersGoals$X.Coordinate <- as.numeric(ottersGoals$X.Coordinate) - 100
@@ -424,114 +406,102 @@ ggplot(ottersGoals, aes(x = X.Coordinate, y = Y.Coordinate)) +
   labs(title = "Otters Chart: Goals Area", x = NULL, y = NULL) + 
     scale_x_continuous(breaks = seq(0, 100, by = 10)) + 
     scale_y_continuous(breaks = seq(-40, 40, by = 10))
-```
 
-# A correlation plot shows how well each attribute correlates to another. Notice that none of the attributes really correlate well to the 'Goal' attribute. This is good for the random forest model as we should obtain a well predicted model at first glance; no attribute should dominate.
 
-```{r}
+Correlation Plot
+
+
+
 ottersData_cor <- cor(ottersData[20:29])
 corrplot(ottersData_cor, type = "upper", order = 'hclust', tl.col = "black")
-```
 
-# I split the data on a 75:25 train:test basis to begin my model creation. I create a base line model to gain an understanding of if my hypothesis is correct on attribute domination. I notice that in fact there was some domination from the 'Event' attribute and 'Shot' attribute. Event makes sense as it contains the 'Goal' outcome as previously shown but 'Shot' confuses me based on the correlation matrix. It makes sense that in order to score you have to shoot the puck and the more shots you have the more goals you should score. It is interested that they are not correlated highly in this data set but 'Shot' would dominate the model.
 
-```{r}
+Training the Data
+
+
 set.seed(1986515)
 train <- sample(nrow(ottersData), 0.75*nrow(ottersData), replace = FALSE)
 train_data <- ottersData[train,]
 test_data <- ottersData[-train,]
-```
 
-```{r}
+
+Base Model
+
+
 base_model <- randomForest(Goal ~ ., data = train_data, ntree = 50)
-```
 
-```{r}
+
+Importance Chart
+
 goalImportance <- importance(base_model)
 goalImportance
-```
 
-```{r}
 goalImportance <- as.data.frame(goalImportance)
 ggplot(goalImportance, aes(IncNodePurity, row.names(goalImportance))) +
   geom_bar(stat = "identity", width = 0.1, fill = "black") + 
   geom_point(shape = 21, size = 3, colour = "red", fill = "gold", stroke = 2) + 
-  labs(title = "Goal Variable Importance", x = "Importance", y = "Variable")
-```
+  labs(title = "Fastball Command Variable Importance", x = "Importance", y = "Variable")
 
-# I then created a new model that is tuned properly based on the importance features above. I also removed attributes that I thought would have no impact on the task at hand. Each attribute shows depicts a different way that a player could keep possession or lose it therefore having all of them in would allow for a more diverse and better trained model. After viewing the shot plot above I left in the coordinate attributes to help determine if there is a difference on goal output based on where a trunover or possession occurs. Considering most goals were scored within six feet of the net I wanted to see if turnovers at specific spots would cause an increase in goals. 
 
-# The node importance charts below show that the X.Coordinate attribute had the most dominance in the model but scaled to size all the attributes were fairly even in the creation of the model.
-```{r}
+Tuned Model
+
+
 fullModel <- randomForest(Goal ~ Takeaway + Puck_Recover + Period + Penalty + Pass_Inc + Pass_Comp + game_date + Faceoff_Win + Dumped.In + Clock + Carried.In + X.Coordinate + Y.Coordinate, data = train_data, ntree = 100, maxnodes = 10, nodesize = 5)
-```
 
-```{r}
+
+Importance Tuned Chart
+
 goalImportanceTuned <- importance(fullModel)
 goalImportanceTuned
-```
 
-```{r}
 goalImportanceTuned <- as.data.frame(goalImportanceTuned)
 ggplot(goalImportanceTuned, aes(IncNodePurity, row.names(goalImportanceTuned))) +
   geom_bar(stat = "identity", width = 0.1, fill = "black") + 
   geom_point(shape = 21, size = 3, colour = "red", fill = "gold", stroke = 2) + 
-  labs(title = "Goal Variable Importance Tuned", x = "Importance", y = "Variable")
-```
+  labs(title = "Fastball Command Variable Importance", x = "Importance", y = "Variable")
 
-# I then predicted the scores from the model created onto the train and test data sets using the response method to get a score. I used response because my model was based off regression and not classification. I wanted each observation to receive a score rather than a number assigned to it. This would give me a much better understanding of predicitng goals.
 
-# I then bound both the predictions to the train and test data respectively, changed the prediction column name and bound both train and test sets back together to create a full data set. This allows me to then use one solid data set for aggregating later in the project to obtain my final scores.
+Predictions and Bindings
 
-```{r}
+
 train_pred <- predict(fullModel, train_data, method = "response")
 test_pred <- predict(fullModel, test_data, method = "response")
-```
-
-```{r}
 train_data <- cbind(train_data, train_pred)
 test_data <- cbind(test_data, test_pred)
-```
-
-```{r}
 train_data <- rename(train_data, GoalPred = train_pred)
 test_data <- rename(test_data, GoalPred = test_pred)
-```
-
-```{r}
 PredGoalFull <- rbind(train_data, test_data)
-```
 
-# The following plot shows how well the model was created. The trace shows the confidence level in of the output from the model. This may seem terrible to the eye but looking along the Y axis you will notice that the model ran at a 99.99% confidence interval throughout. This is the closest you would be able to get to being 100% accurate without using the goal metric in the model itself. 
 
-```{r}
+Error Plot
+
+
 plot(fullModel, col = "gold", main = "Goal Predict Model")
-```
 
-# The Receiver Operating Characteristic (ROC) graph below how the model did at predicting for the train and test data sets. The graph below shows that both the train (red line) and test (blue line) performed extremely well with no deviation. This is key because we want to see both lines move in unicen to prove that the model worked just as well on each data sets when predicting. Both lines went towards the upper left corner on a curve away from diagonal line thus showing that the model worked really well in removing chance from its output. 
 
-```{r}
+Receiver Operating Curve
+
 roc_test <- roc(ifelse(test_data$Goal == "1", "1", "0"), as.numeric(test_data$GoalPred))
+## Setting levels: control = 0, case = 1
+## Setting direction: controls < cases
 roc_train <- roc(ifelse(train_data$Goal == "1", "1", "0"), as.numeric(train_data$GoalPred))
+## Setting levels: control = 0, case = 1
+## Setting direction: controls < cases
 plot(roc_test, col = "blue", main = "Goal Predict ROC Graph")
 lines(roc_train, col = "red")
-```
-# To complete the project I aggregated the completed data set to determine if whether keeping possession would be more effective in creating goals. As you can see below on the first chart all the metrics seem relatively close in range thus showing no real statistical difference.
 
-```{r}
+
+Aggregate to Begin Final Steps
+
 ottersDataAgg <- aggregate(GoalPred ~ Event, data = PredGoalFull, FUN = mean)
 ottersDataAgg <- filter(ottersDataAgg, Event != "Goal" & Event != "Shot" & Event != "Penalty Taken")
 ottersDataAgg
-```
 
-# I then created a second table to determine if there was a more concise way to determine if puck possession lead to more goals. Here I labeled each Event as a Possession or Lost outcome based on their definition. I then aggregated the scores again based on the mean. I found it fair to once again use mean as there were more Event outcomes that swayed to a particular side thus using sum would have caused an incomplete number.
 
-```{r}
+Complete Aggregation for Final Charts
+
 ottersDataAgg <- mutate(ottersDataAgg, Outcome = case_when(Event == "Carried In" ~ "Puck Possession", Event == "Dump In/Out" ~ "Puck Lost", Event == "Dumped In" ~ "Puck Lost", Event == "Faceoff Win" ~ "Puck Possession", Event == "Incomplete Play" ~ "Puck Lost", Event == "Play" ~ "Puck Possession", Event == "Puck Recovery" ~ "Puck Possession", Event == "Takeaway" ~ "Puck Possession"))
-ottersDataAgg
+
+Conclusion
 
 PossessionDF <- aggregate(GoalPred ~ Outcome, data = ottersDataAgg, FUN = mean)
-
-PossessionDF
-```
-
